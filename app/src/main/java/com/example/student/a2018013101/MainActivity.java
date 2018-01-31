@@ -7,10 +7,16 @@ import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 
 public class MainActivity extends AppCompatActivity {
     ImageView img;
@@ -49,14 +55,64 @@ public class MainActivity extends AppCompatActivity {
                 img.setImageBitmap(bmp);
             }
         }
+
         if (requestCode==66){//處理照相存起來讀書來的那個識別碼(click2)
             if (resultCode == RESULT_OK)
             {
+////--------這個方法會塞爆記憶體導致當機，所以不好(解析bmp太大了)------------------------------------------------------------------------------
+//                File f = new File(getExternalFilesDir("PHOTO"), "myphoto.jpg");
+//                Bitmap bmp = BitmapFactory.decodeFile(f.getAbsolutePath());//這個方法會塞爆記憶體導致當機，所以不好(解析bmp太大了)
+//                img.setImageBitmap(bmp);
+////--------這個方法會塞爆記憶體導致當機，所以不好(解析bmp太大了)------------------------------------------------------------
+
                 File f = new File(getExternalFilesDir("PHOTO"), "myphoto.jpg");
-                Bitmap bmp = BitmapFactory.decodeFile(f.getAbsolutePath());//這個方法會塞爆記憶體導致當機，所以不好(解析bmp太大了)
-                img.setImageBitmap(bmp);
+                try {
+                    InputStream is = new FileInputStream(f);
+                    Log.d("BMP", "Can READ:" + is.available());
+                    Bitmap bmp = getFitImage(is);
+                    img.setImageBitmap(bmp);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
-
     }
+
+    //--------------------------------------------
+    public static Bitmap getFitImage(InputStream is)
+    {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = false;
+        byte[] bytes = new byte[0];
+        try {
+            bytes = readStream(is);
+            //BitmapFactory.decodeStream(inputStream, null, options);
+            Log.d("BMP", "byte length:" + bytes.length);
+            Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length, options);
+            System.gc();
+            // Log.d("BMP", "Size:" + bmp.getByteCount());
+            return bmp;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+    public static byte[] readStream(InputStream inStream) throws Exception {
+        ByteArrayOutputStream outStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int len = 0;
+        while ((len = inStream.read(buffer)) != -1) {
+            outStream.write(buffer, 0, len);
+        }
+        outStream.close();
+        inStream.close();
+        return outStream.toByteArray();
+    }
+    //--------------------------------------------
+
+
+
+
 }
